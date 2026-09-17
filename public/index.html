@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gestor de Filamento 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ============================ LOGIN ============================ -->
+<div id="pantallaLogin" class="login-wrap">
+  <form id="formLogin" class="login-card">
+    <div class="login-logo">🧵</div>
+    <h1>Gestor de Filamento</h1>
+    <p class="sub">Control de carretes para impresión 3D</p>
+    <label>Usuario
+      <input name="usuario" autocomplete="username" required autofocus />
+    </label>
+    <label>Contraseña
+      <input name="clave" type="password" autocomplete="current-password" required />
+    </label>
+    <button class="btn primary ancho" type="submit">Ingresar</button>
+    <p id="errorLogin" class="error"></p>
+  </form>
+</div>
+
+<!-- ============================ APP ============================ -->
+<div id="app" class="oculto">
+  <header class="barra">
+    <div class="marca"><span>🧵</span> Gestor de Filamento</div>
+    <nav class="tabs">
+      <button class="tab activo" data-vista="panel">Panel</button>
+      <button class="tab" data-vista="carretes">Carretes</button>
+      <button class="tab" data-vista="impresion">Nueva impresión</button>
+      <button class="tab" data-vista="historial">Historial</button>
+      <button class="tab" data-vista="movimientos">Movimientos</button>
+    </nav>
+    <div class="usuario">
+      <span id="nombreUsuario"></span>
+      <button class="btn mini" id="btnClave">Clave</button>
+      <button class="btn mini" id="btnSalir">Salir</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ---------------- PANEL ---------------- -->
+    <section class="vista activo" id="vista-panel">
+      <div class="kpis" id="kpis"></div>
+      <div class="bloque">
+        <div class="bloque-head">
+          <h2>Stock de carretes</h2>
+          <div class="acciones">
+            <label class="inline">Alerta bajo stock (g)
+              <input type="number" id="alertaBajo" class="chico" min="0" step="10" />
+            </label>
+            <button class="btn" data-ir="carretes">+ Cargar carrete</button>
+          </div>
+        </div>
+        <div id="gridStock" class="grid-stock"></div>
+      </div>
+      <div class="bloque">
+        <h2>Últimas impresiones</h2>
+        <div id="ultimasImpresiones"></div>
+      </div>
+    </section>
+
+    <!-- ---------------- CARRETES ---------------- -->
+    <section class="vista" id="vista-carretes">
+      <div class="dos-col">
+        <div class="bloque">
+          <h2 id="tituloFormCarrete">Cargar carrete nuevo</h2>
+          <form id="formCarrete" class="form">
+            <input type="hidden" name="id" />
+            <div class="fila">
+              <label>Marca
+                <input name="marca" list="marcas" placeholder="Bambu Lab" />
+              </label>
+              <label>Material
+                <select name="material">
+                  <option>PLA</option><option>PLA Silk</option><option>PLA-CF</option>
+                  <option>PETG</option><option>ABS</option><option>ASA</option>
+                  <option>TPU</option><option>PA / Nylon</option><option>PC</option>
+                  <option>PVA / Soporte</option><option>Otro</option>
+                </select>
+              </label>
+            </div>
+            <div class="fila">
+              <label>Nombre del color
+                <input name="colorNombre" placeholder="Negro básico" />
+              </label>
+              <label>Color
+                <input name="colorHex" type="color" value="#22c55e" />
+              </label>
+            </div>
+            <div class="fila">
+              <label>Peso NETO de filamento (g)
+                <input name="pesoInicial" type="number" min="1" step="1" value="1000" required />
+                <small>Solo el filamento, sin el carrete.</small>
+              </label>
+              <label>Tara del carrete (g)
+                <input name="tara" type="number" min="0" step="1" value="200" />
+                <small>Peso del plástico vacío (informativo).</small>
+              </label>
+            </div>
+            <div class="rapidos">
+              <span>Presets:</span>
+              <button type="button" class="chip" data-neto="1000" data-tara="200">1 kg neto (bruto 1,2 kg)</button>
+              <button type="button" class="chip" data-neto="800" data-tara="200">800 g neto</button>
+              <button type="button" class="chip" data-neto="750" data-tara="200">750 g neto</button>
+              <button type="button" class="chip" data-neto="500" data-tara="150">500 g neto</button>
+              <button type="button" class="chip" data-neto="250" data-tara="120">250 g neto</button>
+            </div>
+            <div class="fila">
+              <label>Costo del carrete (opcional)
+                <input name="costo" type="number" min="0" step="0.01" placeholder="0" />
+              </label>
+              <label>Ubicación / slot AMS
+                <input name="ubicacion" placeholder="AMS 1 - A" />
+              </label>
+            </div>
+            <label id="campoRestante">Gramos disponibles hoy (opcional)
+              <input name="pesoRestante" type="number" min="0" step="1" placeholder="Vacío = carrete lleno" />
+              <small>Si el carrete ya está empezado, poné cuánto te queda.</small>
+            </label>
+            <label>Notas
+              <textarea name="notas" rows="2" placeholder="Lote, proveedor, humedad…"></textarea>
+            </label>
+            <div class="acciones">
+              <button class="btn primary" type="submit" id="btnGuardarCarrete">Guardar carrete</button>
+              <button class="btn" type="button" id="btnCancelarCarrete">Cancelar edición</button>
+            </div>
+          </form>
+        </div>
+        <div class="bloque">
+          <div class="bloque-head">
+            <h2>Carretes cargados</h2>
+            <label class="inline"><input type="checkbox" id="verArchivados" /> ver archivados</label>
+          </div>
+          <div id="listaCarretes" class="lista-carretes"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- NUEVA IMPRESIÓN ---------------- -->
+    <section class="vista" id="vista-impresion">
+      <div class="bloque">
+        <h2>Registrar impresión y descontar filamento</h2>
+        <p class="ayuda">
+          Subí la captura del <strong>Resultado del corte</strong> de Bambu Studio. La app intenta leer los gramos
+          automáticamente; después asignás cada fila al carrete correspondiente (podés usar el cuentagotas 🎨
+          sobre el cuadradito de color de la imagen para que el carrete se elija solo).
+        </p>
+
+        <div class="dos-col">
+          <div>
+            <div id="zonaDrop" class="dropzone">
+              <input type="file" id="archivoImagen" accept="image/*" hidden />
+              <div id="dropVacio">
+                <div class="drop-icono">🖼️</div>
+                <p><strong>Arrastrá la captura acá</strong><br />o hacé clic para elegirla · también podés pegar con Ctrl/Cmd+V</p>
+              </div>
+              <div id="dropPreview" class="oculto">
+                <canvas id="lienzo"></canvas>
+                <p class="nota" id="notaCuenta"></p>
+              </div>
+            </div>
+            <div class="acciones">
+              <button class="btn" id="btnOcr" disabled>🔍 Leer gramos de la imagen</button>
+              <button class="btn" id="btnQuitarImagen" disabled>Quitar imagen</button>
+            </div>
+            <p id="estadoOcr" class="nota"></p>
+          </div>
+
+          <div>
+            <div class="fila">
+              <label>Nombre del trabajo
+                <input id="impNombre" placeholder="Llavero cliente X" />
+              </label>
+              <label>Fecha
+                <input id="impFecha" type="date" />
+              </label>
+            </div>
+
+            <table class="tabla-consumo">
+              <thead>
+                <tr><th style="width:42px"></th><th>Carrete</th><th style="width:110px">Gramos</th><th style="width:40px"></th></tr>
+              </thead>
+              <tbody id="filasConsumo"></tbody>
+            </table>
+            <button class="btn" id="btnAgregarFila">+ Agregar filamento</button>
+
+            <div class="total-box">
+              <div><span>Total a descontar</span><strong id="totalGramos">0 g</strong></div>
+              <div><span>Costo estimado</span><strong id="totalCosto">—</strong></div>
+            </div>
+            <div id="avisoStock"></div>
+            <label>Notas
+              <input id="impNotas" placeholder="Observaciones de la impresión" />
+            </label>
+            <div class="acciones">
+              <button class="btn primary grande" id="btnGuardarImpresion">Descontar del stock</button>
+              <button class="btn" id="btnLimpiarImpresion">Limpiar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------------- HISTORIAL ---------------- -->
+    <section class="vista" id="vista-historial">
+      <div class="bloque">
+        <h2>Historial de impresiones</h2>
+        <div id="listaHistorial"></div>
+      </div>
+    </section>
+
+    <!-- ---------------- MOVIMIENTOS ---------------- -->
+    <section class="vista" id="vista-movimientos">
+      <div class="bloque">
+        <div class="bloque-head">
+          <h2>Movimientos de stock</h2>
+          <select id="filtroMovCarrete" class="chico"><option value="">Todos los carretes</option></select>
+        </div>
+        <table class="tabla">
+          <thead><tr><th>Fecha</th><th>Carrete</th><th>Tipo</th><th class="der">Gramos</th><th class="der">Saldo</th><th>Detalle</th></tr></thead>
+          <tbody id="tablaMovimientos"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div id="avisos" class="avisos"></div>
+<datalist id="marcas"><option>Bambu Lab</option><option>Grilon3</option><option>Esun</option><option>Sunlu</option><option>Polymaker</option><option>Prusament</option><option>Printalot</option></datalist>
+
+<!-- Modal cambio de clave -->
+<div id="modalClave" class="modal oculto">
+  <form class="modal-card" id="formClave">
+    <h3>Cambiar contraseña</h3>
+    <label>Contraseña actual<input name="actual" type="password" required /></label>
+    <label>Nueva contraseña<input name="nueva" type="password" minlength="6" required /></label>
+    <div class="acciones">
+      <button class="btn primary" type="submit">Guardar</button>
+      <button class="btn" type="button" id="cerrarModalClave">Cancelar</button>
+    </div>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

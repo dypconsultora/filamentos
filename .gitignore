@@ -1,0 +1,7 @@
+# Datos locales: base, capturas subidas y credenciales hasheadas
+data/
+
+# Sistema
+.DS_Store
+*.log
+node_modules/
