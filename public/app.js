@@ -372,6 +372,15 @@ document.addEventListener('click', async (e) => {
 
 /* ---------------------------------------------------------------- filas de consumo */
 
+const MATERIALES = ['PLA','PLA Silk','PLA-CF','PETG','ABS','ASA','TPU','PA / Nylon','PC','PVA / Soporte','Otro'];
+
+let comboAbierto = null;   // uid de la fila con el buscador de carretes abierto
+let comboFiltro = '';
+let comboCreando = false;  // el buscador está mostrando el alta de un color nuevo
+
+const normalizar = (t) =>
+  String(t ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
 function agregarFila(datos = {}) {
   filas.push({
     uid: Math.random().toString(36).slice(2),
@@ -390,71 +399,220 @@ function renderFilas() {
       const hex = f.colorHex || (c ? c.colorHex : '#3a4250');
       return `<tr data-uid="${f.uid}">
         <td><button class="btn-gota ${modoGota === f.uid ? 'activo' : ''}" data-gota="${f.uid}" title="Tomar el color desde la imagen">🎨</button></td>
-        <td>
-          <div style="display:flex;align-items:center;gap:7px">
-            <span class="punto" style="width:18px;height:18px;background:${esc(hex)}"></span>
-            <select data-campo="carreteId">${opcionesCarretes(f.carreteId)}</select>
-          </div>
-        </td>
+        <td>${comboHtml(f, c, hex)}</td>
         <td><input type="number" step="0.01" min="0" data-campo="gramos" value="${f.gramos}" placeholder="0" /></td>
-        <td><button class="btn mini peligro" data-quitar="${f.uid}">✕</button></td>
+        <td><button class="btn mini peligro" data-quitar="${f.uid}" title="Quitar la fila">✕</button></td>
       </tr>`;
     })
     .join('');
+
+  if (comboAbierto) {
+    const foco = cuerpo.querySelector(`[data-uid="${comboAbierto}"] .combo-filtro, [data-uid="${comboAbierto}"] .combo-form input`);
+    if (foco) {
+      if (foco.classList.contains('combo-filtro')) foco.value = comboFiltro;
+      foco.focus();
+      if (foco.setSelectionRange && foco.value) foco.setSelectionRange(foco.value.length, foco.value.length);
+    }
+  }
   actualizarTotales();
 }
 
-function opcionesCarretes(sel) {
-  const activos = estado.carretes.filter((c) => !c.archivado);
-  return (
-    `<option value="">— elegir carrete —</option>` +
-    activos
-      .map(
-        (c) =>
-          `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(nombreCarrete(c))} (${Math.round(c.pesoRestante)} g)</option>`
-      )
-      .join('')
-  );
+/* --------- buscador de carretes --------- */
+
+function comboHtml(f, c, hex) {
+  const abierto = comboAbierto === f.uid;
+  const etiqueta = c ? `${nombreCarrete(c)} · ${Math.round(c.pesoRestante)} g` : 'Elegir carrete…';
+  return `<div class="combo${abierto ? ' abierto' : ''}">
+    <button type="button" class="combo-btn${c ? '' : ' vacia'}" data-combo="${f.uid}">
+      <span class="punto" style="background:${esc(hex)}"></span>
+      <span class="combo-txt">${esc(etiqueta)}</span>
+      <span class="combo-flecha">▾</span>
+    </button>
+    ${abierto ? (comboCreando ? formNuevoHtml(f) : panelHtml(f)) : ''}
+  </div>`;
 }
 
-function renderSelectsFilas() {
-  $$('#filasConsumo select[data-campo="carreteId"]').forEach((s) => {
-    const uid = s.closest('tr').dataset.uid;
-    const f = filas.find((x) => x.uid === uid);
-    s.innerHTML = opcionesCarretes(f ? f.carreteId : '');
-  });
+function panelHtml(f) {
+  return `<div class="combo-panel">
+    <input class="combo-filtro" type="text" autocomplete="off" spellcheck="false"
+           placeholder="Buscar color, marca o material…" />
+    <div class="combo-lista">${listaHtml(f)}</div>
+    <button type="button" class="combo-nuevo" data-nuevo="${f.uid}">+ Cargar un color nuevo</button>
+  </div>`;
 }
+
+function listaHtml(f) {
+  const q = normalizar(comboFiltro);
+  const activos = estado.carretes.filter((c) => !c.archivado);
+  const lista = q
+    ? activos.filter((c) => normalizar(`${c.marca} ${c.material} ${c.colorNombre} ${c.ubicacion}`).includes(q))
+    : activos;
+
+  if (!activos.length)
+    return `<div class="combo-vacio">Todavía no hay carretes cargados.<br />Cargá el primero con el botón de abajo.</div>`;
+  if (!lista.length)
+    return `<div class="combo-vacio">Ningún carrete coincide con “${esc(comboFiltro)}”.<br />
+      Cargalo como color nuevo con el botón de abajo.</div>`;
+
+  return lista
+    .map(
+      (c) => `<button type="button" class="combo-item${c.id === f.carreteId ? ' sel' : ''}" data-elegir="${c.id}">
+        <span class="punto" style="background:${esc(c.colorHex)}"></span>
+        <span class="ci-nom">${esc(nombreCarrete(c))}</span>
+        <span class="ci-g${c.pesoRestante <= (estado.config.alertaBajo ?? 150) ? ' bajo' : ''}">${Math.round(c.pesoRestante)} g</span>
+      </button>`
+    )
+    .join('');
+}
+
+function formNuevoHtml(f) {
+  const hex = f.colorHex || '#3b82f6';
+  const tomadoDeImagen = !!f.colorHex;
+  return `<div class="combo-panel">
+    <div class="combo-titulo">Cargar un color nuevo</div>
+    <form class="combo-form" data-form-nuevo="${f.uid}">
+      <label>Nombre del color
+        <input name="colorNombre" value="${esc(comboFiltro)}" placeholder="Azul Francia" required />
+      </label>
+      <div class="combo-fila">
+        <label>Marca<input name="marca" list="marcas" placeholder="Grilon3" /></label>
+        <label>Material<select name="material">${MATERIALES.map((m) => `<option>${m}</option>`).join('')}</select></label>
+      </div>
+      <div class="combo-fila">
+        <label>Color<input name="colorHex" type="color" value="${esc(hex)}" /></label>
+        <label>Peso neto (g)<input name="pesoInicial" type="number" min="1" step="1" value="1000" /></label>
+      </div>
+      <p class="nota">${tomadoDeImagen
+        ? 'El color viene tomado de la imagen. Ajustalo si no coincide.'
+        : 'Elegí el color lo más parecido posible al filamento real.'}</p>
+      <div class="acciones">
+        <button class="btn primary mini" type="submit">Crear y usar</button>
+        <button class="btn mini" type="button" data-cancelar-nuevo="1">Cancelar</button>
+      </div>
+    </form>
+  </div>`;
+}
+
+function abrirCombo(uid, creando = false, filtro = '') {
+  comboAbierto = uid;
+  comboCreando = creando;
+  comboFiltro = filtro;
+  renderFilas();
+}
+
+function cerrarCombo() {
+  if (!comboAbierto) return;
+  comboAbierto = null;
+  comboCreando = false;
+  comboFiltro = '';
+  renderFilas();
+}
+
+// mantiene los carretes al día sin cerrar lo que el usuario tenga abierto
+function renderSelectsFilas() {
+  if (filas.length) renderFilas();
+}
+
+/* --------- eventos de las filas --------- */
 
 $('#filasConsumo').addEventListener('input', (e) => {
+  if (e.target.classList.contains('combo-filtro')) {
+    comboFiltro = e.target.value;
+    const f = filas.find((x) => x.uid === comboAbierto);
+    const lista = e.target.closest('.combo-panel').querySelector('.combo-lista');
+    if (f && lista) lista.innerHTML = listaHtml(f);
+    return;
+  }
   const tr = e.target.closest('tr');
   if (!tr) return;
   const f = filas.find((x) => x.uid === tr.dataset.uid);
   if (!f) return;
-  const campo = e.target.dataset.campo;
-  if (campo === 'gramos') f.gramos = e.target.value;
-  if (campo === 'carreteId') {
-    f.carreteId = e.target.value;
-    const c = carrete(f.carreteId);
-    if (c) tr.querySelector('.punto').style.background = c.colorHex;
-  }
+  if (e.target.dataset.campo === 'gramos') f.gramos = e.target.value;
   actualizarTotales();
+});
+
+// Enter en el filtro elige el primer resultado; Escape cierra
+$('#filasConsumo').addEventListener('keydown', (e) => {
+  if (!e.target.classList.contains('combo-filtro')) return;
+  if (e.key === 'Escape') { e.preventDefault(); cerrarCombo(); }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const primero = e.target.closest('.combo-panel').querySelector('.combo-item');
+    if (primero) primero.click();
+    else e.target.closest('.combo-panel').querySelector('.combo-nuevo').click();
+  }
 });
 
 $('#filasConsumo').addEventListener('click', (e) => {
   const q = e.target.closest('[data-quitar]');
   if (q) {
     filas = filas.filter((f) => f.uid !== q.dataset.quitar);
+    comboAbierto = null;
     if (!filas.length) agregarFila(); else renderFilas();
     return;
   }
+
+  const abrir = e.target.closest('[data-combo]');
+  if (abrir) {
+    const uid = abrir.dataset.combo;
+    if (comboAbierto === uid) cerrarCombo(); else abrirCombo(uid);
+    return;
+  }
+
+  const elegir = e.target.closest('[data-elegir]');
+  if (elegir) {
+    const f = filas.find((x) => x.uid === comboAbierto);
+    if (f) f.carreteId = elegir.dataset.elegir;
+    cerrarCombo();
+    return;
+  }
+
+  const nuevo = e.target.closest('[data-nuevo]');
+  if (nuevo) { comboCreando = true; renderFilas(); return; }
+
+  if (e.target.closest('[data-cancelar-nuevo]')) { comboCreando = false; renderFilas(); return; }
+
   const gt = e.target.closest('[data-gota]');
   if (gt) {
     if (!imagenDataUrl) return toast('Primero subí la captura del corte.', 'err');
     modoGota = modoGota === gt.dataset.gota ? null : gt.dataset.gota;
+    comboAbierto = null;
     $('#zonaDrop').classList.toggle('cuentagotas', !!modoGota);
     renderFilas();
     if (modoGota) toast('Hacé clic en el cuadradito de color dentro de la imagen.');
   }
+});
+
+// alta de un carrete sin salir de la pantalla de impresión
+$('#filasConsumo').addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-form-nuevo]');
+  if (!form) return;
+  e.preventDefault();
+  const uid = form.dataset.formNuevo;
+  const datos = Object.fromEntries(new FormData(form));
+  if (!normalizar(datos.colorNombre) && !normalizar(datos.marca))
+    return toast('Poné al menos el nombre del color.', 'err');
+
+  const previos = new Set(estado.carretes.map((c) => c.id));
+  try {
+    const resp = await api('/carretes', { method: 'POST', body: { ...datos, tara: 200 } });
+    const creado = resp.carretes.find((c) => !previos.has(c.id));
+    aplicarEstado(resp);
+    const f = filas.find((x) => x.uid === uid);
+    if (f && creado) { f.carreteId = creado.id; f.colorHex = creado.colorHex; }
+    comboAbierto = null; comboCreando = false; comboFiltro = '';
+    renderFilas();
+    toast(`Carrete “${creado ? nombreCarrete(creado) : datos.colorNombre}” creado y asignado.`, 'ok');
+  } catch (err) {
+    toast(err.message, 'err');
+  }
+});
+
+// clic fuera del buscador: se cierra
+document.addEventListener('click', (e) => {
+  if (!comboAbierto) return;
+  if (e.target.closest('.combo')) return;
+  cerrarCombo();
 });
 
 $('#btnAgregarFila').addEventListener('click', () => agregarFila());
@@ -551,16 +709,23 @@ lienzo.addEventListener('click', (e) => {
   const y = Math.round(((e.clientY - r.top) / r.height) * lienzo.height);
   const d = lienzo.getContext('2d').getImageData(x, y, 1, 1).data;
   const hex = rgbAHex(d[0], d[1], d[2]);
-  const f = filas.find((x) => x.uid === modoGota);
-  if (f) {
-    f.colorHex = hex;
-    const m = carreteMasParecido(hex);
-    if (m) { f.carreteId = m.id; toast(`Color ${hex} → ${nombreCarrete(m)}`, 'ok'); }
-    else toast(`Color ${hex} tomado (sin carrete parecido).`);
-  }
+  const uid = modoGota;
+  const f = filas.find((x) => x.uid === uid);
   modoGota = null;
   zona.classList.remove('cuentagotas');
-  renderFilas();
+  if (!f) return renderFilas();
+
+  f.colorHex = hex;
+  const m = carreteMasParecido(hex);
+  if (m) {
+    f.carreteId = m.id;
+    toast(`Color ${hex} → ${nombreCarrete(m)}`, 'ok');
+    renderFilas();
+  } else {
+    // no hay ningún carrete de ese color: se ofrece cargarlo en el momento
+    toast(`No hay ningún carrete parecido a ${hex}. Cargalo como color nuevo.`);
+    abrirCombo(uid, true);
+  }
 });
 
 const rgbAHex = (r, g_, b) => '#' + [r, g_, b].map((v) => v.toString(16).padStart(2, '0')).join('');
@@ -608,8 +773,12 @@ $('#btnOcr').addEventListener('click', async (e) => {
         agregarFila({ gramos: d.gramos, colorHex: d.colorHex, carreteId: m ? m.id : '' });
       }
       const asignadas = filas.filter((f) => f.carreteId).length;
+      const sinAsignar = filas.length - asignadas;
       $('#estadoOcr').textContent =
-        `Detecté ${detectadas.length} filamento(s). ${asignadas} asignado(s) por color automáticamente. Revisá los valores antes de descontar.`;
+        `Detecté ${detectadas.length} filamento(s), ${asignadas} asignado(s) por color automáticamente.` +
+        (sinAsignar
+          ? ` Quedan ${sinAsignar} sin carrete: abrí el desplegable para buscarlo o cargar el color nuevo.`
+          : ' Revisá los valores antes de descontar.');
       toast(`${detectadas.length} filamentos detectados.`, 'ok');
     }
   } catch (err) {
