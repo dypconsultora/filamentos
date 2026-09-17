@@ -16,7 +16,20 @@ Se abre en el navegador, sin instalar nada. Sirve para que lo vean y lo prueben.
 > de navegación. El usuario y la contraseña son un simple candado de la pantalla,
 > no protegen información. Para el trabajo diario, usar la versión con servidor.
 
-### 2. Versión con servidor — para usar de verdad
+### 2. Versión Laravel + MySQL — la de producción
+
+Está en la carpeta `laravel/`. Es la que va al hosting: los datos viven en una
+base MySQL/MariaDB en el servidor, así **todos ven el mismo stock** desde
+cualquier computadora.
+
+```bash
+cd laravel && ./sincronizar-ui.sh && php artisan serve
+```
+
+Ver `laravel/README.md` para levantarla en desarrollo y `laravel/DEPLOY.md` para
+instalarla en un hosting con cPanel.
+
+### 3. Versión con servidor Node — la primera, para uso local
 
 ```bash
 node server.js
@@ -58,10 +71,14 @@ vuelven al carrete.
 
 | Archivo | Para qué |
 |---|---|
+| `public/index.html` · `public/styles.css` · `public/app.js` | **La interfaz.** Es una sola y se comparte entre las tres versiones |
+| `laravel/` | Versión de producción: PHP + MySQL, para hosting compartido |
 | `server.js` | Servidor Node sin dependencias: API, sesiones y guardado en `data/` |
-| `public/index.html` · `public/styles.css` · `public/app.js` | La interfaz completa: se usa igual en las dos versiones |
 | `index.html` | Entrada de GitHub Pages: levanta la misma interfaz y le enchufa el backend del navegador |
 | `backend-local.js` | Reemplaza la API del servidor cuando no hay servidor (guarda en el navegador) |
+
+Las tres versiones hablan **la misma API**, así que la interfaz no se duplica:
+se toca en un solo lugar y `laravel/sincronizar-ui.sh` la copia dentro de Laravel.
 
 ## Nota sobre la lectura automática
 
