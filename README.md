@@ -3,26 +3,41 @@
 Control de stock de filamento por carrete, con descuento automático a partir de la
 captura del **Resultado del corte** de Bambu Studio.
 
-## Cómo levantarlo
+## Dos formas de usarlo
+
+### 1. Versión online (GitHub Pages) — para mostrar y probar
+
+**https://dypconsultora.github.io/filamentos/**
+
+Se abre en el navegador, sin instalar nada. Sirve para que lo vean y lo prueben.
+
+> Ojo: al no haber servidor, **los datos se guardan solo en el navegador de cada
+> persona**. No se comparten entre computadoras y se pierden si se borran los datos
+> de navegación. El usuario y la contraseña son un simple candado de la pantalla,
+> no protegen información. Para el trabajo diario, usar la versión con servidor.
+
+### 2. Versión con servidor — para usar de verdad
 
 ```bash
 node server.js
 ```
 
-Después abrir http://localhost:4173
+Después abrir http://localhost:4173 (para cambiar el puerto: `PORT=5000 node server.js`).
 
-Para cambiar el puerto: `PORT=5000 node server.js`
+No necesita `npm install`: funciona solo con Node.js, sin dependencias.
+Los datos quedan en `data/db.json` y las capturas en `data/uploads/`, en la máquina
+que corre el servidor. Para backup, copiar la carpeta `data/`.
 
 ## Acceso
 
-La primera vez que arranca, el servidor crea el usuario inicial:
+La primera vez que arranca, se crea el usuario inicial:
 
 - Usuario: **admin**
 - Contraseña: **Filamento2026**
 
-> **Importante:** cambiá esa contraseña apenas entres, desde el botón **Clave**
-> arriba a la derecha. El servidor escucha solo en `127.0.0.1`, así que la app no
-> queda expuesta a la red, pero la clave por defecto es pública (está en este README).
+> **Importante:** cambiala apenas entres, desde el botón **Clave** arriba a la derecha.
+> El servidor escucha solo en `127.0.0.1`, así que no queda expuesto a la red, pero la
+> clave por defecto es pública (está en este README).
 
 ## Cómo se usa
 
@@ -39,14 +54,17 @@ La primera vez que arranca, el servidor crea el usuario inicial:
 Si una impresión se cargó mal, en **Historial** se puede **Revertir** y los gramos
 vuelven al carrete.
 
-## Datos
+## Cómo está armado
 
-Todo se guarda en `data/db.json` y las capturas en `data/uploads/`.
-Para hacer backup, copiar la carpeta `data/`.
+| Archivo | Para qué |
+|---|---|
+| `server.js` | Servidor Node sin dependencias: API, sesiones y guardado en `data/` |
+| `public/index.html` · `public/styles.css` · `public/app.js` | La interfaz completa: se usa igual en las dos versiones |
+| `index.html` | Entrada de GitHub Pages: levanta la misma interfaz y le enchufa el backend del navegador |
+| `backend-local.js` | Reemplaza la API del servidor cuando no hay servidor (guarda en el navegador) |
 
 ## Nota sobre la lectura automática
 
-La lectura de la imagen (OCR) usa Tesseract.js desde CDN: la primera vez necesita
-internet para descargar el motor; después queda en caché del navegador.
-Los valores leídos son una sugerencia — siempre se pueden corregir a mano antes de
-descontar.
+El OCR usa Tesseract.js desde CDN: la primera vez necesita internet para descargar el
+motor; después queda en caché del navegador. Los valores leídos son una **sugerencia**
+y siempre se pueden corregir a mano antes de descontar.

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Gestor de Filamento 3D</title>
+<meta name="description" content="Control de stock de filamento por carrete para impresión 3D, con descuento automático desde la captura del laminador." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧵</text></svg>" />
+<link rel="stylesheet" href="public/styles.css" />
+</head>
+<body>
+<noscript><p style="color:#e6edf5;padding:20px">Esta aplicación necesita JavaScript activado.</p></noscript>
+<script>
+/* Versión para GitHub Pages: reutiliza la misma interfaz que la versión con
+   servidor (public/index.html) y le enchufa el backend que corre en el navegador. */
+(async () => {
+  const cargarScript = (src) =>
+    new Promise((ok, mal) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = ok;
+      s.onerror = () => mal(new Error('No se pudo cargar ' + src));
+      document.body.appendChild(s);
+    });
+
+  try {
+    const html = await (await fetch('public/index.html', { cache: 'no-cache' })).text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script').forEach((s) => s.remove());
+    document.body.innerHTML = doc.body.innerHTML;
+
+    // el OCR es opcional: si el CDN no responde, la carga manual sigue andando
+    try { await cargarScript('https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js'); }
+    catch { console.warn('Tesseract no disponible: la lectura automática de imágenes queda deshabilitada.'); }
+
+    await cargarScript('backend-local.js');
+    await cargarScript('public/app.js');
+  } catch (e) {
+    document.body.innerHTML =
+      '<p style="color:#e6edf5;font-family:sans-serif;padding:24px">No se pudo iniciar la aplicación: ' +
+      e.message + '</p>';
+  }
+})();
+</script>
+</body>
+</html>

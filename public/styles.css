@@ -174,3 +174,8 @@ main{max-width:1280px;margin:0 auto;padding:20px}
   padding:22px;width:100%;max-width:360px}
 .ayuda{color:var(--suave);font-size:.85rem;margin:-4px 0 14px;max-width:80ch}
 .vacio{color:var(--suave);font-size:.87rem;padding:14px;text-align:center}
+
+/* ---------- cartel de la versión estática (GitHub Pages) ---------- */
+.cartel-local{background:#2c2410;border-bottom:1px solid #6b4a12;color:#fcd34d;
+  font-size:.8rem;line-height:1.45;padding:9px 18px;text-align:center}
+.cartel-local strong{color:#fde68a}

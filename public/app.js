@@ -20,6 +20,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
 const nombreCarrete = (c) =>
   [c.marca, c.material, c.colorNombre].filter(Boolean).join(' · ') || 'Carrete sin nombre';
 const carrete = (id) => estado.carretes.find((c) => c.id === id);
+// en la versión con servidor llega el nombre del archivo; en la estática, la imagen embebida
+const rutaImagen = (img) => (String(img).startsWith('data:') ? img : '/uploads/' + img);
 
 function toast(msg, tipo = '') {
   const el = document.createElement('div');
@@ -235,7 +237,7 @@ function itemHistorial(i) {
         )} · <b>${g(l.gramos)}</b></span>`;
       })
       .join('')}</div>
-    ${i.imagen ? `<img class="ih-img" src="/uploads/${esc(i.imagen)}" onclick="window.open(this.src)" alt="captura del corte" />` : ''}
+    ${i.imagen ? `<img class="ih-img" src="${esc(rutaImagen(i.imagen))}" onclick="window.open(this.src)" alt="captura del corte" />` : ''}
   </div>`;
 }
 
